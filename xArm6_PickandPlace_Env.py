@@ -12,11 +12,18 @@ class xArm6GraspEnv(gym.Env):
     def __init__(self):
         super(xArm6GraspEnv, self).__init__()
 
-        # PyBullet 연결
-        self.client = p.connect(p.GUI)
+        # 관찰 공간 정의: RGB-D image, joint angles
+        self.height, self.width, self.channel = 640, 480, 4  # TODO: 크기 조절해야 함
+        self.num_joints = 7
 
-        
-        # 환경 초기화
+        self.observation_space = spaces.Dict({
+            'rgbd': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.depth), dtype=np.uint8),
+            'joint_angles': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
+        })
+
+        # 행동 공간 정의: 
+
+        self.client = None
         self.reset()
 
 
@@ -40,6 +47,8 @@ class xArm6GraspEnv(gym.Env):
 
         return self._get_observation()
 
+
+
     def reset_cube(self):
         if self.cube_id is not None:
             p.removeBody(self.cube_id, self.client)
@@ -47,6 +56,8 @@ class xArm6GraspEnv(gym.Env):
         pos = [np.random.uniform(-0.2, 0.2), np.random.uniform(-0.2, 0.2), 0.75]
         orientation = p.getQuaternionFromEuler([0, 0, 0])
         self.cube_id = p.loadURDF("cube_small.urdf", pos, orientation, physicsClientId=self.client)
+
+
 
     def _get_observation(self):
         pass
