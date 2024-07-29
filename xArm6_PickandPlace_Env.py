@@ -23,8 +23,8 @@ class xArm6GraspEnv(gym.Env):
 
         # 행동 공간 정의: End-effector displacement(x, y, z), rotation(z), gripper action(closing)
         self.action_space = spaces.Dict({
-            'ee_position': spaces.Box(low=np.array([-1.0, -1.0, -1.0]), high=np.array([1.0, 1.0, 1.0]), dtype=np.float32),
-            'ee_rotation': spaces.Box(low=np.array([-np.pi]), high=np.array([np.pi]), dtype=np.float32),
+            'end_effector_position': spaces.Box(low=np.array([-1.0, -1.0, -1.0]), high=np.array([1.0, 1.0, 1.0]), dtype=np.float32),
+            'end_effector_rotation': spaces.Box(low=np.array([-np.pi]), high=np.array([np.pi]), dtype=np.float32),
             'gripper_action': spaces.Box(low=0.0, high=1.0, shape=(1, ), dtype=np.float32),
         })
 
@@ -45,7 +45,8 @@ class xArm6GraspEnv(gym.Env):
         # 테이블 및 로봇 로드
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
         self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[0, 0, 0.75])
-        
+        self.ee = 6
+
         # 큐브 초기화
         self.cube_id = None
         self.reset_cube()
@@ -122,7 +123,33 @@ class xArm6GraspEnv(gym.Env):
 
 
     def step(self, action):
-        pass
+        # Apply action
+        end_effector_pos_delta = action['end_effector_position']
+        end_effector_rot_delta = action['end_effector_rotation']
+        gripper_action = action['gripper_action'][0]
+
+        # Apply end-effector position and rotation
+        end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
+        new_pos = np.array(end_effector_pos) + end_effector_pos_delta
+        orientation = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta[0]])
+
+        p.setJointMotorControl2(self.robot_id, self.ee, p.POSITION_CONTROL, targetPosition=new_pos, targetOrientation=orientation)
+
+
+        # Apply gripper action
+        gripper_finger_indices = [7, 8]
+        for joint_index in gripper_finger_indices:
+            p.setJointMotorControl2(self.robot_id, joint_index, p.POSITION_CONTROL, targetPosition=gripper_action)
+
+        p.stepSimulation(self.client)
+
+        obs = self._get_observation()
+        reward = self._compute_reward(obs)
+        done = self._is_done(obs)
+
+        return obs, reward, done
+    
+    
 
     def _compute_reward(self, observation):
         pass
