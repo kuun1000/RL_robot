@@ -113,9 +113,13 @@ class xArm6GraspEnv(gym.Env):
         joint_states = p.getJointStates(self.robot_id, range(self.num_joints))
         joint_positions = [state[0] for state in joint_states]
 
+        # Cube position
+        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_id)
+
         observation = {
             'rgbd': rgbd_img,
-            'joint_angles': np.array(joint_positions)
+            'joint_angles': np.array(joint_positions),
+            'cube_position': np.array(cube_pos)
         }
 
         return observation
@@ -127,6 +131,9 @@ class xArm6GraspEnv(gym.Env):
         end_effector_pos_delta = action['end_effector_position']
         end_effector_rot_delta = action['end_effector_rotation']
         gripper_action = action['gripper_action'][0]
+
+        # Previous position of end-effector
+        prev_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
 
         # Apply end-effector position and rotation
         end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
@@ -143,16 +150,35 @@ class xArm6GraspEnv(gym.Env):
 
         p.stepSimulation(self.client)
 
+        # Current position of end-effector
+        cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
+
         obs = self._get_observation()
-        reward = self._compute_reward(obs)
+        reward = self._compute_reward(obs, prev_end_effector_pos, cur_end_effector_pos, new_pos)
         done = self._is_done(obs)
 
         return obs, reward, done
     
-    
 
-    def _compute_reward(self, observation):
-        pass
+
+    def _compute_reward(self, observation, initial_pos, final_pos, target_pos):
+        cube_pos = observation['cube_position']
+
+        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
+
+        reward -= 0.025
+        if np.allclose(final_pos, initial_pos, atol=1e-2):
+            reward -= 1.0
+        else:
+            if len(gripper_contact) > 0:
+                if cube_pos[2] > 0.5:
+                    reward += 10.0
+                else:
+                    reward += 1.0
+                
+        return reward
+
+
 
     def _is_done(self, observation):
         pass
