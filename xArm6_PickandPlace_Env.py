@@ -5,7 +5,7 @@ import pybullet as p
 import pybullet_data
 
 import numpy as np
-
+import cv2
 
 
 class xArm6GraspEnv(gym.Env):
@@ -13,7 +13,7 @@ class xArm6GraspEnv(gym.Env):
         super(xArm6GraspEnv, self).__init__()
 
         # 관찰 공간 정의: RGB-D image, joint angles
-        self.height, self.width, self.channel = 640, 480, 4  # TODO: 크기 조절해야 함
+        self.height, self.width, self.channel = 480, 640, 4  # TODO: 크기 조절해야 함
         self.num_joints = 7
 
         self.observation_space = spaces.Dict({
@@ -64,8 +64,62 @@ class xArm6GraspEnv(gym.Env):
 
 
 
+    def arm_camera(self):
+        # Center of mass position and orientation(of link-9)
+        com_p, com_o, _, _, _, _ = p.getLinkState(self.robot_id, 9)
+
+        # Camera setting
+        fov, aspect, near, far = 60, self.width/self.height, 0.01, 15
+        projection_matrix = p.computeProjectionMatrixFOV(fov, aspect, near, far)
+
+        rot_matrix = p.getMatrixFromQuaternion(com_o)
+        rot_matrix = np.array(rot_matrix).reshape(3, 3)
+
+        # Initial vectors
+        init_camera_vector = (0, 0, -1)  # z-axis
+        init_up_vector = (0, 1, 0)  # y-axis
+
+        # Rotated vectors
+        camera_vector = rot_matrix.dot(init_camera_vector)
+        up_vector = rot_matrix.dot(init_up_vector)
+        view_matrix = p.computeViewMatrix(com_p, com_p + 1.0 * camera_vector, up_vector)
+
+        img = p.getCameraImage(self.width, self.height, view_matrix, projection_matrix,
+                               shadow=True,
+                               renderer=p.ER_BULLET_HARDWARE_OPENGL)
+
+        rgb_opengl = np.reshape(img[2], (self.height, self.width, 4)) * (1. / 255.)
+        rgb_opengl_uint8 = np.array(rgb_opengl * 255, dtype=np.uint8)
+        rgb_img = cv2.cvtColor(rgb_opengl_uint8, cv2.COLOR_RGB2BGR)
+
+        depth_opengl = np.reshape(img[3], (self.height, self.width))
+        depth_img_normalized = cv2.normalize(depth_opengl, None, 0, 255, cv2.NORM_MINMAX)
+        depth_img = np.uint8(depth_img_normalized)
+
+        segmentation_image = np.array(img[4]).reshape((self.height, self.width))
+        seg_img = cv2.applyColorMap(np.uint8(segmentation_image * 255 / segmentation_image.max()), cv2.COLORMAP_JET)
+
+        return rgb_img, depth_img, seg_img
+
+
+
     def _get_observation(self):
-        pass
+        # RGB-D image
+        rgb_img, depth_img, seg_img = self.arm_camera()
+        rgbd_img = np.dstack((rgb_img, depth_img))
+
+        # Joint angles
+        joint_states = p.getJointStates(self.robot_id, range(self.num_joints))
+        joint_positions = [state[0] for state in joint_states]
+
+        observation = {
+            'rgbd': rgbd_img,
+            'joint_angles': np.array(joint_positions)
+        }
+
+        return observation
+
+
 
     def step(self, action):
         pass
