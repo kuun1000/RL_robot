@@ -184,10 +184,12 @@ class xArm6GraspEnv(gym.Env):
         cube_pos = observation['cube_position']
         return cube_pos[2] > 0.5
     
-    
+
 
     def render(self, mode='human'):
         pass
 
     def close(self):
-        pass
+        if self.client is not None:
+            p.disconnect(self.client)
+            self.client = None
