@@ -181,7 +181,10 @@ class xArm6GraspEnv(gym.Env):
 
 
     def _is_done(self, observation):
-        pass
+        cube_pos = observation['cube_position']
+        return cube_pos[2] > 0.5
+    
+    
 
     def render(self, mode='human'):
         pass
