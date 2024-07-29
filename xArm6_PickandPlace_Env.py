@@ -22,9 +22,13 @@ class xArm6GraspEnv(gym.Env):
 
 
     def reset(self):
-        # PyBullet 초기화
+        if self.client is None:
+            # PyBullet 초기화   
+            p.resetSimulation(self.client)
+            p.setAddictionalSearchPath(pybullet_data.getDataPath())
+
         p.resetSimulation(self.client)
-        p.setGravity(0, 0, -9.8)
+        p.setGravity(0, 0, -9.8, self.client)
 
         # 테이블 및 로봇 로드
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
@@ -34,7 +38,7 @@ class xArm6GraspEnv(gym.Env):
         self.cube_id = None
         self.reset_cube()
 
-
+        return self._get_observation()
 
     def reset_cube(self):
         if self.cube_id is not None:
