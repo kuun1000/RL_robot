@@ -21,7 +21,10 @@ class xArm6GraspEnv(gym.Env):
             'joint_angles': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
         })
 
-        # 행동 공간 정의: 
+        # 행동 공간 정의: End-effector displacement(x, y, z), rotation(z), gripper action(closing)
+        self.action_space = spaces.Box(low=np.array([-1.0, -1.0, -1.0, -np.pi, -1.0]),
+                                       high=np.array([1.0, 1.0, 1.0, np.pi, 1.0]),
+                                       dtype=np.float32)
 
         self.client = None
         self.reset()
