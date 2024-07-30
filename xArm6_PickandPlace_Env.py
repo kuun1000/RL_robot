@@ -136,13 +136,23 @@ class xArm6GraspEnv(gym.Env):
         # Previous position of end-effector
         prev_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
 
-        # Apply end-effector position and rotation
+        # Current end-effector position and rotation
         end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
-        new_pos = np.array(end_effector_pos) + end_effector_pos_delta
-        orientation = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta[0]])
-
-        p.setJointMotorControl2(self.robot_id, self.ee, p.POSITION_CONTROL, targetPosition=new_pos, targetOrientation=orientation)
-
+        
+        # Calculate target position and orientation
+        new_pos = np.array(end_effector_pos) + np.array(end_effector_pos_delta)
+        new_orn = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta[0]])
+        
+        # InverseKinematics
+        jointPoses = p.calculateInverseKinematics(self.robot_id, self.ee, new_pos, new_orn)
+        
+        # Control each joints to move end-effector to target position
+        for i in range(self.num_joints):
+            p.setJointMotorControl2(bodyIndex=self.robot_id,
+                                jointIndex=i,
+                                controlMode=p.POSITION_CONTROL,
+                                targetPosition=jointPoses[i],
+                                )
 
         # Apply gripper action
         gripper_finger_indices = [7, 8]
