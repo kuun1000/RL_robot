@@ -198,13 +198,7 @@ class xArm6GraspEnv(gym.Env):
 
 
     def render(self, mode='human'):
-        rgb_img, depth_img, seg_img = self.arm_camera()
-
-        combined_img = np.vstack((rgb_img, depth_img, seg_img))
-
-        cv2.imshow("Rendered Image", combined_img)
-        cv2.waitKey(1)
-
+        self.arm_camera()
 
 
     def close(self):
