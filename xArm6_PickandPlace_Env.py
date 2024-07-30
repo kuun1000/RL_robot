@@ -177,7 +177,7 @@ class xArm6GraspEnv(gym.Env):
 
         gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
 
-        reward -= 0.025
+        reward = -0.025
         if np.allclose(final_pos, initial_pos, atol=1e-2):
             reward -= 1.0
         else:
