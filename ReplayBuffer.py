@@ -7,12 +7,13 @@ class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
 
-    def push(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
+    def push(self, state_rgbd, state_motor, action, reward, next_state_rgbd, next_state_motor, done):
+        self.buffer.append((state_rgbd, state_motor, action, reward, next_state_rgbd, next_state_motor, done))
 
     def sample(self, batch_size):
-        state, action, reward, next_state, done = zip(*random.sample(self.buffer, batch_size))
-        return np.stack(state), action, reward, np.stack(next_state), done
+        batch = random.sample(self.buffer, batch_size)
+        state_rgbd, state_motor, action, reward, next_state_rgbd, next_state_motor, done = map(np.stack, zip(*batch))
+        return state_rgbd, state_motor, action, reward, next_state_rgbd, next_state_motor, done
 
     def __len__(self):
         return len(self.buffer)

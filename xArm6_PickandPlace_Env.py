@@ -44,7 +44,7 @@ class xArm6GraspEnv(gym.Env):
 
         # 테이블 및 로봇 로드
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
-        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[-0.5, 0, 0.65])
+        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[-0.5, 0, 0.60], useFixedBase=True)
         self.ee = 6
         self.camera = 9
 
@@ -164,6 +164,9 @@ class xArm6GraspEnv(gym.Env):
         # Current position of end-effector
         cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
 
+        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
+        print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
+
         obs = self._get_observation()
         reward = self._compute_reward(obs, prev_end_effector_pos, cur_end_effector_pos, new_pos)
         done = self._is_done(obs)
@@ -176,24 +179,27 @@ class xArm6GraspEnv(gym.Env):
         cube_pos = observation['cube_position']
 
         gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
-
-        reward = -0.025
+        print(f'gripper contact: {gripper_contact}')
+        reward = 0.0
+        
         if np.allclose(final_pos, initial_pos, atol=1e-2):
             reward -= 1.0
+        
         else:
             if len(gripper_contact) > 0:
-                if cube_pos[2] > 0.5:
+                if cube_pos[2] > 1.0:
                     reward += 10.0
                 else:
                     reward += 1.0
-                
+        reward = -0.025
+
         return reward
 
 
 
     def _is_done(self, observation):
         cube_pos = observation['cube_position']
-        return cube_pos[2] > 0.5
+        return cube_pos[2] >1.0
     
 
 
