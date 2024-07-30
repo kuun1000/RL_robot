@@ -23,7 +23,7 @@ class GraspQNetwork(nn.Module):
         x = torch.relu(self.conv1(x))
         x = torch.relu(self.conv2(x))
         x = torch.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)
+        x = x.reshape(x.size(0), -1)
         x = torch.relu(self.fc1(x))
         return self.fc2(x)
     
