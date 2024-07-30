@@ -44,7 +44,7 @@ class xArm6GraspEnv(gym.Env):
 
         # 테이블 및 로봇 로드
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
-        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[0, 0, 0.75])
+        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[-0.5, 0, 0.65])
         self.ee = 6
         self.camera = 9
 
@@ -60,7 +60,7 @@ class xArm6GraspEnv(gym.Env):
         if self.cube_id is not None:
             p.removeBody(self.cube_id, self.client)
 
-        pos = [np.random.uniform(-0.2, 0.2), np.random.uniform(-0.2, 0.2), 0.75]
+        pos = [np.random.uniform(-0.2, 0.2), np.random.uniform(-0.2, 0.2), 0.65]
         orientation = p.getQuaternionFromEuler([0, 0, 0])
         self.cube_id = p.loadURDF("cube_small.urdf", pos, orientation, physicsClientId=self.client)
 
