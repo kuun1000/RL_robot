@@ -36,8 +36,8 @@ class xArm6GraspEnv(gym.Env):
     def reset(self):
         if self.client is None:
             # PyBullet 초기화   
-            p.resetSimulation(self.client)
-            p.setAddictionalSearchPath(pybullet_data.getDataPath())
+            self.client = p.connect(p.GUI)
+            p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
         p.resetSimulation(self.client)
         p.setGravity(0, 0, -9.8, self.client)
