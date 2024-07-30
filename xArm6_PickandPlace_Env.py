@@ -195,6 +195,8 @@ class xArm6GraspEnv(gym.Env):
         cv2.imshow("Rendered Image", combined_img)
         cv2.waitKey(1)
 
+
+
     def close(self):
         if self.client is not None:
             p.disconnect(self.client)
