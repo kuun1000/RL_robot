@@ -46,6 +46,7 @@ class xArm6GraspEnv(gym.Env):
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
         self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[0, 0, 0.75])
         self.ee = 6
+        self.camera = 9
 
         # 큐브 초기화
         self.cube_id = None
@@ -67,7 +68,7 @@ class xArm6GraspEnv(gym.Env):
 
     def arm_camera(self):
         # Center of mass position and orientation(of link-9)
-        com_p, com_o, _, _, _, _ = p.getLinkState(self.robot_id, 9)
+        com_p, com_o, _, _, _, _ = p.getLinkState(self.robot_id, self.camera)
 
         # Camera setting
         fov, aspect, near, far = 60, self.width/self.height, 0.01, 15
@@ -187,7 +188,12 @@ class xArm6GraspEnv(gym.Env):
 
 
     def render(self, mode='human'):
-        pass
+        rgb_img, depth_img, seg_img = self.arm_camera()
+
+        combined_img = np.vstack((rgb_img, depth_img, seg_img))
+
+        cv2.imshow("Rendered Image", combined_img)
+        cv2.waitKey(1)
 
     def close(self):
         if self.client is not None:
