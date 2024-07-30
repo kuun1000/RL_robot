@@ -26,3 +26,32 @@ class GraspQNetwork(nn.Module):
         x = x.view(x.size(0), -1)
         x = torch.relu(self.fc1(x))
         return self.fc2(x)
+    
+
+
+# Q-Network 학습 관련 함수
+def update_target(q_network, target_q_network):
+    target_q_network.load_state_dict(q_network.state_dict())
+
+def compute_td_loss(replay_buffer, batch_size, q_network, target_q_network, gamma, optimizer):
+    state, action, reward, next_state, done = replay_buffer.sample(batch_size)
+    state = torch.tensor(state).float().cuda()
+    next_state = torch.tensor(next_state).float().cuda()
+    action = torch.tensor(action).long().cuda()
+    reward = torch.tensor(reward).float().cuda()
+    done = torch.tensor(done).float().cuda()
+
+    q_values = q_network(state)
+    next_q_values = target_q_network(next_state)
+
+    q_value = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
+    next_q_value = next_q_values.max(1)[0]
+    expected_q_value = reward + gamma * next_q_value * (1 - done)
+
+    loss = (q_value - expected_q_value.detach()).pow(2).mean()
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    return loss
