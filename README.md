@@ -1,5 +1,6 @@
-# 사용되는 파이썬 파일
 
+* lite_6_robotarm.urdf: xArm6 + camera에 대한 urdf 파일
+* meshes: 위와 함께 필요한 파일들
 
 * xArm6_PickandPlace_Env.py: xArm6 로봇을 가지고 물체를 집어올리는 환경
   * Rename해야 함(PickandPlace -> Pick)
