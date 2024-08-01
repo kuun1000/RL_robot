@@ -1,3 +1,6 @@
+# 사용되는 파이썬 파일
+
+
 * xArm6_PickandPlace_Env.py: xArm6 로봇을 가지고 물체를 집어올리는 환경
   * Rename해야 함(PickandPlace -> Pick)
   
