@@ -44,7 +44,7 @@ class xArm6GraspEnv(gym.Env):
 
         # 테이블 및 로봇 로드
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
-        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[-0.5, 0, 0.60], useFixedBase=True)
+        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[-0.45, -0.05, 0.60], useFixedBase=True)
         self.ee = 6
         self.camera = 9
 
@@ -165,7 +165,7 @@ class xArm6GraspEnv(gym.Env):
         cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
 
         cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
-        print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
+        # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
 
         obs = self._get_observation()
         reward = self._compute_reward(obs, prev_end_effector_pos, cur_end_effector_pos, new_pos)
@@ -179,7 +179,7 @@ class xArm6GraspEnv(gym.Env):
         cube_pos = observation['cube_position']
 
         gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
-        print(f'gripper contact: {gripper_contact}')
+        # print(f'gripper contact: {gripper_contact}')
         reward = 0.0
         
         if np.allclose(final_pos, initial_pos, atol=1e-2):
