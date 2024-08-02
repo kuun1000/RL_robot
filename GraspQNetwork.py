@@ -77,21 +77,24 @@ def compute_td_loss(replay_buffer, batch_size, q_network, target_q_network, gamm
     state_rgbd = state_rgbd.permute(0, 3, 1, 2)  # (batch_size, channels, height, width)
     next_state_rgbd = next_state_rgbd.permute(0, 3, 1, 2)  # (batch_size, channels, height, width)
 
-    q_values = q_network(state_rgbd, state_motor)
+    q_values = q_network(state_rgbd, state_motor)   # (batch_size, num_actions)
+    # print(f"shape of q_values:{q_values.shape}")
+    # print(f"number of action: {action.shape}")
     next_q_values = target_q_network(next_state_rgbd, next_state_motor)
 
     # Convert action to appropriate shape
-    action = action.reshape(-1, 1)
-    print(f"action shape: {action.shape}")
+    q_value = torch.sum(q_values * action, dim=1)
+    # action = action.reshape(-1, 1)
+    # print(f"action shape: {action.shape}")
 
     # q_value = q_values.gather(1, action).squeeze(1)
-    # next_q_value = next_q_values.max(1)[0]
-    # expected_q_value = reward + gamma * next_q_value * (1 - done)
+    next_q_value = next_q_values.max(1)[0]
+    expected_q_value = reward + gamma * next_q_value * (1 - done)
 
-    # loss = (q_value - expected_q_value.detach()).pow(2).mean()
+    loss = (q_value - expected_q_value.detach()).pow(2).mean()
 
-    # optimizer.zero_grad()
-    # loss.backward()
-    # optimizer.step()
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
-    # return loss
+    return loss
