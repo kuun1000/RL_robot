@@ -8,9 +8,9 @@ import numpy as np
 import cv2
 
 
-class xArm6GraspEnv(gym.Env):
+class xArmEnv(gym.Env):
     def __init__(self):
-        super(xArm6GraspEnv, self).__init__()
+        super(xArmEnv, self).__init__()
 
         # 관찰 공간 정의: RGB-D image, joint angles
         self.height, self.width, self.channel = 480, 640, 4  # TODO: 크기 조절해야 함
