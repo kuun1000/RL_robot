@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 from GraspQNetwork import GraspQNetwork, update_target, compute_td_loss
 from ReplayBuffer import ReplayBuffer
-from xArm6_PickandPlace_Env import xArm6GraspEnv
+from xArm_Env import xArm6GraspEnv
 
 # 환경 초기화 및 학습 설정
 env = xArm6GraspEnv()
