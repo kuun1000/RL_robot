@@ -2,10 +2,10 @@ import torch
 import torch.optim as optim
 from GraspQNetwork import GraspQNetwork, update_target, compute_td_loss
 from ReplayBuffer import ReplayBuffer
-from xArm_Env import xArm6GraspEnv
+from xArm_Env import xArmEnv
 
 # 환경 초기화 및 학습 설정
-env = xArm6GraspEnv()
+env = xArmEnv()
 input_shape_rgbd = (4, 480, 640)  # RGB-D 이미지의 입력 형태
 motor_input_dim = env.observation_space.spaces['joint_angles'].shape[0]
 num_actions = env.action_space.spaces['end_effector_position'].shape[0] + \
