@@ -146,7 +146,12 @@ class xArm6GraspEnv(gym.Env):
 
 
     def step(self, action):
-        
+        pos_delta = np.linspace(-1.0, 1.0, self.num_pos_actions)
+        end_effector_pos_delta = np.array([pos_delta[action['end_effector_position'][i]] for i in range(3)])
+    
+        rot_delta = np.linspace(-np.pi, np.pi, self.num_rot_actions)
+        end_effector_rot_delta = rot_delta[action['end_effector_rotation']]
+
         # Apply action
         end_effector_pos_delta = action['end_effector_position']
         end_effector_rot_delta = action['end_effector_rotation']
