@@ -42,13 +42,9 @@ class xArmEnv(gym.Env):
         p.resetSimulation(self.client)
         p.setGravity(0, 0, -9.8, self.client)
 
-        # 로봇 팔 및 테이블 로드
+        # 테이블 및 로봇 로드
         self.table_id = p.loadURDF("table/table.urdf", basePosition=[0, 0, 0], physicsClientId=self.client)
         self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=[-0.45, -0.05, 0.60], useFixedBase=True)
-        
-        # 로봇 팔과 테이블 간 충돌 활성화
-        p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
-
         self.ee = 6
         self.camera = 9
 
