@@ -37,9 +37,9 @@ class xArm6GraspEnv(gym.Env):
         self.num_grip_actions = 2  # open/close 2개
 
         self.action_space = spaces.Dict({
-            'end_effector_position': spaces.Discrete([self.num_pos_bins] * 3),
-            'end_effector_rotation': spaces.Discrete(self.num_rot_bins),
-            'gripper_action': spaces.Discrete(self.num_grip_bins),
+            'end_effector_position': spaces.Discrete([self.num_pos_actions] * 3),
+            'end_effector_rotation': spaces.Discrete(self.num_rot_actions),
+            'gripper_action': spaces.Discrete(self.num_grip_actions),
         })
 
         self.client = None
