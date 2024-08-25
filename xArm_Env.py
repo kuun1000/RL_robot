@@ -15,7 +15,6 @@ class xArm6GraspEnv(gym.Env):
         # 관찰 공간 정의: RGB-D image, joint angles
         self.height, self.width, self.channel = 480, 640, 4  # TODO: 크기 조절해야 함
         self.num_joints = 7
-        self.joint_angle_actions = 10  # 관절 각도 action
 
 
         self.observation_space = spaces.Dict({
