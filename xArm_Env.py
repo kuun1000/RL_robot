@@ -13,13 +13,15 @@ class xArmEnv(gym.Env):
     def __init__(self):
         super(xArmEnv, self).__init__()
 
-        # 관찰 공간 정의: RGB-D image, joint angles
-        self.height, self.width, self.channel = 480, 640, 4  # TODO: 크기 조절해야 함
-        self.num_joints = 7
+        # 관찰 공간 정의: RGB image, Depth image, Joint state
+        
+        self.height, self.width, self.channel = 480, 640, 3     # 이미지 해상도 설정 -> TODO: 해상도 조절 필요
+        self.num_joints = 6     # End-effector 제외한 관절 개수
 
         self.observation_space = spaces.Dict({
-            'rgbd': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
-            'joint_angles': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
+            'rgb': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
+            'depth': spaces.Box(low=0, high=255, shape=(self.height, self.width, 1), dtype=np.uint8),
+            'joint_state': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
         })
 
         # 행동 공간 정의: End-effector displacement(x, y, z), rotation(z), gripper action(closing)
@@ -150,7 +152,7 @@ class xArmEnv(gym.Env):
         fov, aspect, near, far = 60, self.width/self.height, 0.01, 15
         projection_matrix = p.computeProjectionMatrixFOV(fov, aspect, near, far)
 
-        rot_matrix = p.getMatrixFromQuaternion(com_o)
+        rot_matrix = p.getMatrixFromQuaternion(com_o) 
         rot_matrix = np.array(rot_matrix).reshape(3, 3)
 
         # Initial vectors
