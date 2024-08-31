@@ -57,8 +57,8 @@ class xArmEnv(gym.Env):
         self.camera = 9
 
         # 큐브 초기화
-        self.cube_object_id = None
-        self.cube_target_id = None
+        self.cube_id = None
+        self.target_id = None
         self.create_cube()
 
         return self._get_observation()
@@ -67,16 +67,18 @@ class xArmEnv(gym.Env):
 
     def create_cube(self):
         # 테이블 범위 파악
-        aabb_min, aabb_max = p.getAABB(self.table_id)  # 테이블의 AABB 범위
+        aabb_min, aabb_max = p.getAABB(self.table_id)
         
-        # 첫 번째 큐브 생성 (ghost=False)
+        # 큐브 생성
         pos1 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
                 np.random.uniform(aabb_min[1], aabb_max[1]), 
                 aabb_max[2] + 0.05]  # 테이블 위에 약간 띄워서 배치
-        orientation1 = p.getQuaternionFromEuler([0, 0, 0])
-        self.cube_object_id = p.loadURDF("cube_small.urdf", pos1, orientation1, useFixedBase=False, globalScaling=1.0, physicsClientId=self.client)
         
-        # 두 번째 큐브 생성 (ghost=True)
+        orientation1 = p.getQuaternionFromEuler([0, 0, 0])
+
+        self.cube_id = p.loadURDF("cube_small.urdf", pos1, orientation1, useFixedBase=False, physicsClientId=self.client)
+        
+        # 목표 위치 시각화
         while True:
             pos2 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
                     np.random.uniform(aabb_min[1], aabb_max[1]), 
@@ -84,59 +86,21 @@ class xArmEnv(gym.Env):
             if not np.allclose(pos1, pos2, atol=0.1):  # 두 큐브의 위치가 같지 않도록 설정
                 break
 
+        cube_aabb_min, cube_aabb_max = p.getAABB(self.cube_id)
+        cube_length = (cube_aabb_max[0] - cube_aabb_min[0]) / 2
+
+        p1 = [pos2[0] - cube_length, pos2[1] - cube_length, pos2[2]]
+        p2 = [pos2[0] + cube_length, pos2[1] - cube_length, pos2[2]]
+        p3 = [pos2[0] + cube_length, pos2[1] + cube_length, pos2[2]]
+        p4 = [pos2[0] - cube_length, pos2[1] + cube_length, pos2[2]]
+
+        p.addUserDebugLine(p1, p2, [1, 0, 0], 2)
+        p.addUserDebugLine(p2, p3, [1, 0, 0], 2)
+        p.addUserDebugLine(p3, p4, [1, 0, 0], 2)
+        p.addUserDebugLine(p4, p1, [1, 0, 0], 2)
+
         orientation2 = p.getQuaternionFromEuler([0, 0, 0])
-        self.cube_target_id = p.loadURDF("cube_small.urdf", pos2, orientation2, useFixedBase=False, globalScaling=1.0, physicsClientId=self.client)
-        
-        # 두 번째 큐브를 ghost 모드로 설정하여 충돌 무시
-        p.changeVisualShape(self.cube_target_id, -1, rgbaColor=[0, 1, 0, 0.5])  # 반투명 초록색으로 설정
-        p.setCollisionFilterPair(self.cube_target_id,  self.cube_target_id, -1, -1, enableCollision=0)  # ghost 모드 설정
-
-
-
-    def _create_geometry(
-            self,
-            body_name: str,
-            geom_type: int,
-            mass: float = 0.0,
-            position: Optional[np.ndarray] = None,
-            ghost: bool = False,
-            lateral_friction: Optional[float] = None,
-            spinning_friction: Optional[float] = None,
-            visual_kwargs: Dict[str, Any] = {},
-            collision_kwargs: Dict[str, Any] = {},
-        ) -> None:
-            """Create a geometry.
-
-            Args:
-                body_name (str): The name of the body. Must be unique in the sim.
-                geom_type (int): The geometry type. See self.physics_client.GEOM_<shape>.
-                mass (float, optional): The mass in kg. Defaults to 0.
-                position (np.ndarray, optional): The position, as (x, y, z). Defaults to [0, 0, 0].
-                ghost (bool, optional): Whether the body can collide. Defaults to False.
-                lateral_friction (float or None, optional): Lateral friction. If None, use the default pybullet
-                    value. Defaults to None.
-                spinning_friction (float or None, optional): Spinning friction. If None, use the default pybullet
-                    value. Defaults to None.
-                visual_kwargs (dict, optional): Visual kwargs. Defaults to {}.
-                collision_kwargs (dict, optional): Collision kwargs. Defaults to {}.
-            """
-            position = position if position is not None else np.zeros(3)
-            baseVisualShapeIndex = self.physics_client.createVisualShape(geom_type, **visual_kwargs)
-            if not ghost:
-                baseCollisionShapeIndex = self.physics_client.createCollisionShape(geom_type, **collision_kwargs)
-            else:
-                baseCollisionShapeIndex = -1
-            self._bodies_idx[body_name] = self.physics_client.createMultiBody(
-                baseVisualShapeIndex=baseVisualShapeIndex,
-                baseCollisionShapeIndex=baseCollisionShapeIndex,
-                baseMass=mass,
-                basePosition=position,
-            )
-
-            if lateral_friction is not None:
-                self.set_lateral_friction(body=body_name, link=-1, lateral_friction=lateral_friction)
-            if spinning_friction is not None:
-                self.set_spinning_friction(body=body_name, link=-1, spinning_friction=spinning_friction)
+        self.target_id = p.loadURDF("cube_small.urdf", pos2, orientation2, useFixedBase=False, physicsClientId=self.client)
 
 
 
@@ -189,7 +153,7 @@ class xArmEnv(gym.Env):
         joint_positions = [state[0] for state in joint_states]
 
         # Cube position
-        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_object_id)
+        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_id)
 
         observation = {
             'rgbd': rgbd_img,
@@ -238,7 +202,7 @@ class xArmEnv(gym.Env):
         # Current position of end-effector
         cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
 
-        cube_pos = p.getBasePositionAndOrientation(self.cube_object_id)[0]
+        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
         # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
 
         obs = self._get_observation()
@@ -252,7 +216,7 @@ class xArmEnv(gym.Env):
     def _compute_reward(self, observation, initial_pos, final_pos, target_pos):
         cube_pos = observation['cube_position']
 
-        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_object_id)
+        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
         # print(f'gripper contact: {gripper_contact}')
         reward = 0.0
         
