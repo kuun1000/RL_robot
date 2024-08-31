@@ -149,10 +149,11 @@ class xArmEnv(gym.Env):
         rot_delta = np.linspace(-np.pi, np.pi, self.num_rot_actions)
         end_effector_rot_delta = rot_delta[action['end_effector_rotation']]
 
-        
-        end_effector_pos_delta = action['end_effector_position']
-        end_effector_rot_delta = action['end_effector_rotation']
-        gripper_action = action['gripper_action'][0]
+        gripper_action = action['gripper_action']
+
+        # end_effector_pos_delta = action['end_effector_position']
+        # end_effector_rot_delta = action['end_effector_rotation']
+        # gripper_action = action['gripper_action'][0]
 
         # Previous position of end-effector
         prev_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
@@ -162,7 +163,7 @@ class xArmEnv(gym.Env):
         
         # Calculate target position and orientation
         new_pos = np.array(end_effector_pos) + np.array(end_effector_pos_delta)
-        new_orn = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta[0]])
+        new_orn = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta])
         
         # InverseKinematics
         jointPoses = p.calculateInverseKinematics(self.robot_id, self.ee, new_pos, new_orn)
@@ -185,7 +186,7 @@ class xArmEnv(gym.Env):
         # Current position of end-effector
         cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
 
-        cube_pos = p.getBasePositionAndOrientation(self.cube_object_id)[0]
+        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
         # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
 
         obs = self._get_observation()
@@ -199,7 +200,7 @@ class xArmEnv(gym.Env):
     def _compute_reward(self, observation, initial_pos, final_pos, target_pos):
         cube_pos = observation['cube_position']
 
-        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_object_id)
+        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
         # print(f'gripper contact: {gripper_contact}')
         reward = 0.0
         
