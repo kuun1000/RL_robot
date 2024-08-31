@@ -24,12 +24,8 @@ class xArmEnv(gym.Env):
             'joint_state': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
         })
 
-        # 행동 공간 정의: End-effector displacement(x, y, z), rotation(z), gripper action(closing)
-        self.action_space = spaces.Dict({
-            'end_effector_position': spaces.Box(low=np.array([-1.0, -1.0, -1.0]), high=np.array([1.0, 1.0, 1.0]), dtype=np.float32),
-            'end_effector_rotation': spaces.Box(low=np.array([-np.pi]), high=np.array([np.pi]), dtype=np.float32),
-            'gripper_action': spaces.Box(low=0.0, high=1.0, shape=(1, ), dtype=np.float32),
-        })
+        # 행동 공간 정의: End-effector displacement(x, y, z), gripper action(closing)
+        self.action_space = spaces.Discrete(8)
 
         self.client = None
         self.reset()
