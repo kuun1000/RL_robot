@@ -72,7 +72,7 @@ class xArmEnv(gym.Env):
         # 큐브 생성
         pos1 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
                 np.random.uniform(aabb_min[1], aabb_max[1]), 
-                aabb_max[2] + 0.05]  # 테이블 위에 약간 띄워서 배치
+                aabb_max[2]+0.03]
         
         orientation1 = p.getQuaternionFromEuler([0, 0, 0])
 
@@ -82,8 +82,8 @@ class xArmEnv(gym.Env):
         while True:
             pos2 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
                     np.random.uniform(aabb_min[1], aabb_max[1]), 
-                    aabb_max[2] + 0.05]
-            if not np.allclose(pos1, pos2, atol=0.1):  # 두 큐브의 위치가 같지 않도록 설정
+                    aabb_max[2]]
+            if not np.allclose(pos1[:2], pos2[:2], atol=0.1):  # 큐브와 목표 위치가 같지 않도록 설정
                 break
 
         cube_aabb_min, cube_aabb_max = p.getAABB(self.cube_id)
@@ -98,9 +98,6 @@ class xArmEnv(gym.Env):
         p.addUserDebugLine(p2, p3, [1, 0, 0], 2)
         p.addUserDebugLine(p3, p4, [1, 0, 0], 2)
         p.addUserDebugLine(p4, p1, [1, 0, 0], 2)
-
-        orientation2 = p.getQuaternionFromEuler([0, 0, 0])
-        self.target_id = p.loadURDF("cube_small.urdf", pos2, orientation2, useFixedBase=False, physicsClientId=self.client)
 
 
 
