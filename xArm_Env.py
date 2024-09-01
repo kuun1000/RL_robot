@@ -54,11 +54,12 @@ class xArmEnv(gym.Env):
                                    basePosition=[0, 0, 0], 
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, np.pi/2]), 
                                    physicsClientId=self.client)
-        robot_base_position = [-0.45, 0.00, 0.60]
+        robot_base_position = [-0.45, 0.00, 0.65]
         robot_base_orientation = p.getQuaternionFromEuler([0, 0, -np.pi/2])
-        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
+        self.robot_id = p.loadURDF("robotarm_revise.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
+        # self.robot_id = p.loadURDF("robotarm_with_table.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
         
-        p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
+        # p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
         p.setCollisionFilterPair(self.robot_id, self.robot_id, -1, -1, 1)
         
         self.ee = 6
@@ -75,7 +76,7 @@ class xArmEnv(gym.Env):
         if self.cube_id is not None:
             p.removeBody(self.cube_id, self.client)
 
-        pos = [np.random.uniform(-0.2, 0.1), np.random.uniform(0.05, 0.25), 0.65]
+        pos = [np.random.uniform(-0.4, 0.2), np.random.uniform(0.0, 0.4), 0.65]
         orientation = p.getQuaternionFromEuler([0, 0, 0])
         self.cube_id = p.loadURDF("cube_small.urdf", pos, orientation, physicsClientId=self.client)
 
