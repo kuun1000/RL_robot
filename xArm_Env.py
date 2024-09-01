@@ -61,6 +61,9 @@ class xArmEnv(gym.Env):
         self.target_pos = None
         self.create_cube()
 
+        # 스텝 수 초기화
+        self.step_count = 0
+
         return self.get_observation()
 
 
@@ -206,7 +209,9 @@ class xArmEnv(gym.Env):
 
         obs = self.get_observation()
         reward = self.compute_reward(obs)
-        done = self._is_done(obs)
+
+        self.step_count += 1
+        done = self.is_done(obs, self.step_count, max_steps=200)
 
         return obs, reward, done
     
@@ -228,10 +233,25 @@ class xArmEnv(gym.Env):
 
 
 
-    def _is_done(self, observation):
-        cube_pos = observation['cube_position']
-        return cube_pos[2] >1.0
+    def is_done(self, observation, step_count, max_steps=200):
+        cube_pos = observation['cube_pos']
+        target_pos = observation['target_pos']
+
+        # 물체가 목표 위치에 정확히 놓였는지
+        dist = np.linalg.norm(np.array(cube_pos) - np.array(target_pos))
+        if dist < 0.05:
+            return True
+        
+        # 최대 스텝 수 초과
+        if step_count >= max_steps:
+            return True
+        
+        # (선택) 물체가 테이블 아래로 떨어졌는지 
+        # if cube_pos[2] < 테이블 z좌표 - 0.05:
+        #     return True
     
+        return False
+
 
 
     def render(self, mode='human'):
