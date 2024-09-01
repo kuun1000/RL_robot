@@ -49,17 +49,21 @@ class xArmEnv(gym.Env):
         p.resetSimulation(self.client)
         p.setGravity(0, 0, -9.8, self.client)
 
-        # 테이블 및 로봇 로드
+        # 테이블 로드
         self.table_id = p.loadURDF("table/table.urdf", 
                                    basePosition=[0, 0, 0], 
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, np.pi/2]), 
                                    physicsClientId=self.client)
+
+        # +++ 로봇 및 카메라 위치 수정(90도 회전)
         robot_base_position = [-0.45, 0.00, 0.65]
         robot_base_orientation = p.getQuaternionFromEuler([0, 0, -np.pi/2])
         self.robot_id = p.loadURDF("robotarm_revise.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
         # self.robot_id = p.loadURDF("robotarm_with_table.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
+        # +++
+
         
-        # p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
+        p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
         p.setCollisionFilterPair(self.robot_id, self.robot_id, -1, -1, 1)
         
         self.ee = 6
@@ -113,10 +117,11 @@ class xArmEnv(gym.Env):
         depth_img_normalized = cv2.normalize(depth_opengl, None, 0, 255, cv2.NORM_MINMAX)
         depth_img = np.uint8(depth_img_normalized)
 
+        # +++ seg안써서 삭제(xArm_Env_Test.py부분도 수정 필요)
         # segmentation_image = np.array(img[4]).reshape((self.height, self.width))
         # seg_img = cv2.applyColorMap(np.uint8(segmentation_image * 255 / segmentation_image.max()), cv2.COLORMAP_JET)
-
-        return rgb_img, depth_img
+        
+        return rgb_img, depth_img    # seg 삭제
 
 
 
