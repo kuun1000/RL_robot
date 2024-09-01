@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="lite_6_robotarm">
-<!-- Table Robot Components -->
+<!-- Table Components -->
   <link name="baseLink">
     <contact>
       <lateral_friction value="1.0"/>
@@ -299,7 +299,24 @@
       </geometry>
     </collision>
   </link>
-  
+<!-- Table - RoborAtm joint Components -->
+  <joint name="table_robotarm" type="continuous">
+    <origin xyz="-1.4819862268024002e-06 -0.00020774933500536933 0" rpy="0 0 0"/>
+    <parent link="baseLink"/>
+    <child link="base_link"/>
+    <axis xyz="-0.0 1.0 -0.0"/>
+  </joint>
+  <transmission name="table_robotarm_tran">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="table_robotarm">
+      <hardwareInterface>PositionJointInterface</hardwareInterface>
+    </joint>
+    <actuator name="table_robotarm_actr">
+      <hardwareInterface>PositionJointInterface</hardwareInterface>
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+  </transmission>
+<!-- RobotArm joint Components -->
   <joint name="right_gripper" type="continuous">
     <origin xyz="-0.026 -0.011 -0.0795" rpy="0 0 0"/>
     <parent link="gripper_mount1"/>
