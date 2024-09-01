@@ -72,11 +72,11 @@ class xArmEnv(gym.Env):
         # 큐브 생성
         pos1 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
                 np.random.uniform(aabb_min[1], aabb_max[1]), 
-                aabb_max[2]+0.03]
+                aabb_max[2] + 0.03]
         
-        orientation1 = p.getQuaternionFromEuler([0, 0, 0])
+        ori1 = p.getQuaternionFromEuler([0, 0, 0])
 
-        self.cube_id = p.loadURDF("cube_small.urdf", pos1, orientation1, useFixedBase=False, physicsClientId=self.client)
+        self.cube_id = p.loadURDF("cube_small.urdf", pos1, ori1, useFixedBase=False, physicsClientId=self.client)
         
         # 목표 위치 시각화
         while True:
