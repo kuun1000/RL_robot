@@ -205,32 +205,26 @@ class xArmEnv(gym.Env):
         # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
 
         obs = self.get_observation()
-        reward = self._compute_reward(obs, prev_end_effector_pos, cur_end_effector_pos, new_pos)
+        reward = self.compute_reward(obs)
         done = self._is_done(obs)
 
         return obs, reward, done
     
 
 
-    def _compute_reward(self, observation, initial_pos, final_pos, target_pos):
-        cube_pos = observation['cube_position']
+    def compute_reward(self, observation):
+        # observation 추출
+        gripper_pos = observation['gripper_pos']   # 그리퍼의 현재 위치
+        cube_pos = np.array(observation['cube_pos'])     # 물체의 현재 위치
+        target_pos = np.array(observation['target_pos'])     # 목표 위치
+        cube_grasped = observation['cube_grasped']  # 물체가 잡혔는지 여부
 
-        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
-        # print(f'gripper contact: {gripper_contact}')
-        reward = 0.0
-        
-        if np.allclose(final_pos, initial_pos, atol=1e-2):
-            reward -= 1.0
-        
-        else:
-            if len(gripper_contact) > 0:
-                if cube_pos[2] > 1.0:
-                    reward += 10.0
-                else:
-                    reward += 1.0
-        reward = -0.025
+        # 거리 기반 보상 
+        assert cube_pos.shape == target_pos.shape
+        dist = np.linalg.norm(cube_pos - target_pos, axis=-1)
+        dist_reward = -np.round(dist, 6)
 
-        return reward
+        return dist_reward
 
 
 
