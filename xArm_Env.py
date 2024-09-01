@@ -168,52 +168,28 @@ class xArmEnv(gym.Env):
 
 
     def step(self, action):
-        # Apply action
-        end_effector_pos_delta = action['end_effector_position']
-        end_effector_rot_delta = action['end_effector_rotation']
-        gripper_action = action['gripper_action'][0]
+        # 행동 적용
+        self.apply_action(action)
 
-        # Previous position of end-effector
-        prev_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
+        # 시뮬레이션 한 스텝 진행
+        p.stepSimulation()
 
-        # Current end-effector position and rotation
-        end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
-        
-        # Calculate target position and orientation
-        new_pos = np.array(end_effector_pos) + np.array(end_effector_pos_delta)
-        new_orn = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta[0]])
-        
-        # InverseKinematics
-        jointPoses = p.calculateInverseKinematics(self.robot_id, self.ee, new_pos, new_orn)
-        
-        # Control each joints to move end-effector to target position
-        for i in range(self.num_joints):
-            p.setJointMotorControl2(bodyIndex=self.robot_id,
-                                jointIndex=i,
-                                controlMode=p.POSITION_CONTROL,
-                                targetPosition=jointPoses[i],
-                                )
+        # 새로운 상태 관찰
+        observation = self.get_observation()
 
-        # Apply gripper action
-        gripper_finger_indices = [7, 8]
-        for joint_index in gripper_finger_indices:
-            p.setJointMotorControl2(self.robot_id, joint_index, p.POSITION_CONTROL, targetPosition=gripper_action)
+        # 보상 계산
+        reward = self.compute_reward(observation)
 
-        p.stepSimulation(self.client)
+        # 에피소드 종료 여부 판단
+        done = self.is_done(observation, self.step_count, max_steps=200)
 
-        # Current position of end-effector
-        cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
-
-        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
-        # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
-
-        obs = self.get_observation()
-        reward = self.compute_reward(obs)
-
+        # 스텝 수 증가
         self.step_count += 1
-        done = self.is_done(obs, self.step_count, max_steps=200)
+        
+        # 추가 정보 TODO: 이후 디버깅 또는 학습 분석을 위한 추가 정보
+        info = {}
 
-        return obs, reward, done
+        return observation, reward, done, info
     
 
 
