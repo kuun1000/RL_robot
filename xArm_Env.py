@@ -58,10 +58,10 @@ class xArmEnv(gym.Env):
 
         # 큐브 초기화
         self.cube_id = None
-        self.target_id = None
+        self.target_pos = None
         self.create_cube()
 
-        return self._get_observation()
+        return self.get_observation()
 
 
 
@@ -85,6 +85,8 @@ class xArmEnv(gym.Env):
                     aabb_max[2]]
             if not np.allclose(pos1[:2], pos2[:2], atol=0.1):  # 큐브와 목표 위치가 같지 않도록 설정
                 break
+
+        self.target_position = pos2
 
         cube_aabb_min, cube_aabb_max = p.getAABB(self.cube_id)
         cube_length = (cube_aabb_max[0] - cube_aabb_min[0]) / 2
@@ -140,22 +142,22 @@ class xArmEnv(gym.Env):
 
 
 
-    def _get_observation(self):
-        # RGB-D image
-        rgb_img, depth_img, seg_img = self.arm_camera()
-        rgbd_img = np.dstack((rgb_img, depth_img))
-
-        # Joint angles
-        joint_states = p.getJointStates(self.robot_id, range(self.num_joints))
-        joint_positions = [state[0] for state in joint_states]
-
-        # Cube position
-        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_id)
+    def get_observation(self):
+        
+        # 그리퍼 위치
+        gripper_pos = p.getLinkState(self.robot_id, self.ee)[0]
+        # 큐브 위치
+        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
+        # 목표 위치
+        target_pos = self.target_pos
+        # 큐브 잡혔는지 여부
+        cube_grasped = len(p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)) > 0
 
         observation = {
-            'rgbd': rgbd_img,
-            'joint_angles': np.array(joint_positions),
-            'cube_position': np.array(cube_pos)
+            'gripper_pos': gripper_pos,
+            'cube_pos': cube_pos,
+            'target_pos': target_pos,
+            'cube_grasped': cube_grasped
         }
 
         return observation
@@ -202,7 +204,7 @@ class xArmEnv(gym.Env):
         cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
         # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
 
-        obs = self._get_observation()
+        obs = self.get_observation()
         reward = self._compute_reward(obs, prev_end_effector_pos, cur_end_effector_pos, new_pos)
         done = self._is_done(obs)
 
