@@ -49,7 +49,7 @@ class xArmEnv(gym.Env):
         
         # 로봇 로드 및 위치 수정
         self.robot_id = p.loadURDF("lite_6_robotarm_revise.urdf", 
-                                   basePosition=[-0.45, 0.00, 0.65], 
+                                   basePosition=[-0.45, 0.00, 0.63], 
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2]),
                                    useFixedBase=True)
         
