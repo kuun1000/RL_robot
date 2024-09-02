@@ -48,7 +48,7 @@ class xArmEnv(gym.Env):
                                    physicsClientId=self.client)
         
         # 로봇 로드 및 위치 수정
-        self.robot_id = p.loadURDF("robotarm_revise.urdf", 
+        self.robot_id = p.loadURDF("lite_6_robotarm_revise.urdf", 
                                    basePosition=[-0.45, 0.00, 0.65], 
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2]),
                                    useFixedBase=True)
@@ -142,10 +142,7 @@ class xArmEnv(gym.Env):
         depth_img_normalized = cv2.normalize(depth_opengl, None, 0, 255, cv2.NORM_MINMAX)
         depth_img = np.uint8(depth_img_normalized)
 
-        segmentation_image = np.array(img[4]).reshape((self.height, self.width))
-        seg_img = cv2.applyColorMap(np.uint8(segmentation_image * 255 / segmentation_image.max()), cv2.COLORMAP_JET)
-
-        return rgb_img, depth_img, seg_img
+        return rgb_img, depth_img
 
 
 
