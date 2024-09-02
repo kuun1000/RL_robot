@@ -41,15 +41,19 @@ class xArmEnv(gym.Env):
         p.resetSimulation(self.client)
         p.setGravity(0, 0, -9.8, self.client)
 
-        # 테이블 및 로봇 로드
+        # 테이블 로드
         self.table_id = p.loadURDF("table/table.urdf", 
                                    basePosition=[0, 0, 0], 
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, np.pi/2]), 
                                    physicsClientId=self.client)
-        self.robot_id = p.loadURDF("lite_6_robotarm.urdf", 
-                                   basePosition=[-0.45, -0.05, 0.60], 
+        
+        # 로봇 로드 및 위치 수정
+        self.robot_id = p.loadURDF("robotarm_revise.urdf", 
+                                   basePosition=[-0.45, 0.00, 0.65], 
+                                   baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2]),
                                    useFixedBase=True)
         
+        # 충돌 설정
         p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
         p.setCollisionFilterPair(self.robot_id, self.robot_id, -1, -1, 1)
         
