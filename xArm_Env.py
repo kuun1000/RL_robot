@@ -1,9 +1,7 @@
 import gymnasium as gym
 from gymnasium import spaces
-
 import pybullet as p
 import pybullet_data
-
 import numpy as np
 import cv2
 from typing import Any, Dict, Iterator, Optional
@@ -21,12 +19,13 @@ class xArmEnv(gym.Env):
         self.observation_space = spaces.Dict({
             'rgb': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
             'depth': spaces.Box(low=0, high=255, shape=(self.height, self.width, 1), dtype=np.uint8),
-            'joint_state': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
+            'joint_state': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32),
+            'end_effector_rotation' : spaces.Box(low = 0, high = np.pi*2, dtype = np.uint8)
         })
 
         # 행동 공간 정의: End-effector displacement(x, y, z), rotation(z), gripper action(closing)
-        self.num_pos_actions = 5  # 예시
-        self.num_rot_actions = 4  # 예시
+        self.num_pos_actions = 3  # 예시
+        self.num_rot_actions = 1  # 예시
         self.num_grip_actions = 2  # open/close 2개
         
         self.action_space = spaces.Dict({
@@ -55,14 +54,13 @@ class xArmEnv(gym.Env):
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, np.pi/2]), 
                                    physicsClientId=self.client)
 
-        # +++ 로봇 및 카메라 위치 수정(90도 회전)
-        robot_base_position = [-0.45, 0.00, 0.65]
-        robot_base_orientation = p.getQuaternionFromEuler([0, 0, -np.pi/2])
-        self.robot_id = p.loadURDF("robotarm_revise.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
-        # self.robot_id = p.loadURDF("robotarm_with_table.urdf", basePosition=robot_base_position, baseOrientation=robot_base_orientation, useFixedBase=True)
-        # +++
-
+        # 로봇 로드 및 위치 수정
+        self.robot_id = p.loadURDF("robotarm_revise.urdf", 
+                                   basePosition=[-0.45, 0.00, 0.63], 
+                                   baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2]),
+                                   useFixedBase=True)
         
+        # 충돌 설정
         p.setCollisionFilterPair(self.robot_id, self.table_id, -1, -1, 1)
         p.setCollisionFilterPair(self.robot_id, self.robot_id, -1, -1, 1)
         
@@ -71,18 +69,51 @@ class xArmEnv(gym.Env):
 
         # 큐브 초기화
         self.cube_id = None
-        self.reset_cube()
+        self.target_pos = None
+        self.create_cube()
 
-        return self._get_observation()
+        # 스텝 수 초기화
+        self.step_count = 0
 
+        return self.get_observation()
 
-    def reset_cube(self):
-        if self.cube_id is not None:
-            p.removeBody(self.cube_id, self.client)
+    def create_cube(self):
+        # 테이블 범위 파악
+        aabb_min, aabb_max = p.getAABB(self.table_id)
 
-        pos = [np.random.uniform(-0.4, 0.2), np.random.uniform(0.0, 0.4), 0.65]
-        orientation = p.getQuaternionFromEuler([0, 0, 0])
-        self.cube_id = p.loadURDF("cube_small.urdf", pos, orientation, physicsClientId=self.client)
+        # 큐브 생성
+        pos1 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
+                np.random.uniform(aabb_min[1], aabb_max[1]), 
+                aabb_max[2] + 0.03]  # 테이블 위에 약간 띄워서 배치
+        
+        ori1 = p.getQuaternionFromEuler([0, 0, 0])
+        self.cube_id = p.loadURDF("cube_small.urdf", pos1, ori1, useFixedBase=False, physicsClientId=self.client)
+        
+        # 목표 위치 시각화
+        while True:
+            pos2 = [np.random.uniform(aabb_min[0], aabb_max[0]), 
+                    np.random.uniform(aabb_min[1], aabb_max[1]), 
+                    aabb_max[2]]
+            if not np.allclose(pos1[:2], pos2[:2], atol=0.1):  # 큐브와 목표 위치가 같지 않도록 설정
+                break
+
+        self.target_pos = pos2   #np.array추가
+
+        cube_aabb_min, cube_aabb_max = p.getAABB(self.cube_id)
+        cube_length = (cube_aabb_max[0] - cube_aabb_min[0]) / 2
+
+        p1 = [pos2[0] - cube_length, pos2[1] - cube_length, pos2[2]]
+        p2 = [pos2[0] + cube_length, pos2[1] - cube_length, pos2[2]]
+        p3 = [pos2[0] + cube_length, pos2[1] + cube_length, pos2[2]]
+        p4 = [pos2[0] - cube_length, pos2[1] + cube_length, pos2[2]]
+
+        p.addUserDebugLine(p1, p2, [1, 0, 0], 2)
+        p.addUserDebugLine(p2, p3, [1, 0, 0], 2)
+        p.addUserDebugLine(p3, p4, [1, 0, 0], 2)
+        p.addUserDebugLine(p4, p1, [1, 0, 0], 2)
+
+        return pos1, pos2   # 추가
+
 
 
     def arm_camera(self):
@@ -116,118 +147,93 @@ class xArmEnv(gym.Env):
         depth_opengl = np.reshape(img[3], (self.height, self.width))
         depth_img_normalized = cv2.normalize(depth_opengl, None, 0, 255, cv2.NORM_MINMAX)
         depth_img = np.uint8(depth_img_normalized)
-
-        # +++ seg안써서 삭제(xArm_Env_Test.py부분도 수정 필요)
-        # segmentation_image = np.array(img[4]).reshape((self.height, self.width))
-        # seg_img = cv2.applyColorMap(np.uint8(segmentation_image * 255 / segmentation_image.max()), cv2.COLORMAP_JET)
-        
-        return rgb_img, depth_img    # seg 삭제
+ 
+        return rgb_img, depth_img
 
 
 
-    def _get_observation(self):
-        # RGB-D image
-        rgb_img, depth_img = self.arm_camera()
-        rgbd_img = np.dstack((rgb_img, depth_img))
-
-        # Joint angles
-        joint_states = p.getJointStates(self.robot_id, range(self.num_joints))
-        joint_positions = [state[0] for state in joint_states]
-
-        # Cube position
-        cube_pos, _ = p.getBasePositionAndOrientation(self.cube_id)
+    def get_observation(self):
+        # 그리퍼 위치
+        gripper_pos = p.getLinkState(self.robot_id, self.ee)[0]
+        # 큐브 위치
+        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
+        # 목표 위치
+        target_pos = self.target_pos
+        # 큐브 잡혔는지 여부
+        cube_grasped = len(p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)) > 0
 
         observation = {
-            'rgbd': rgbd_img,
-            'joint_angles': np.array(joint_positions),
-            'cube_position': np.array(cube_pos)
+            'gripper_pos': gripper_pos,
+            'cube_pos': cube_pos,
+            'target_pos': target_pos,
+            'cube_grasped': cube_grasped
         }
 
         return observation
 
 
+    # def apply_action(self, observation)
+
 
     def step(self, action):
-        # Apply action
-        pos_delta = np.linspace(-1.0, 1.0, self.num_pos_actions)
-        end_effector_pos_delta = np.array([pos_delta[action['end_effector_position'][i]] for i in range(3)])
-    
-        rot_delta = np.linspace(-np.pi, np.pi, self.num_rot_actions)
-        end_effector_rot_delta = rot_delta[action['end_effector_rotation']]
+        # 행동 적용
+        # self.apply_action(action)
 
-        gripper_action = action['gripper_action']
+        # 시뮬레이션 한 스텝 진행
+        p.stepSimulation()
 
-        # end_effector_pos_delta = action['end_effector_position']
-        # end_effector_rot_delta = action['end_effector_rotation']
-        # gripper_action = action['gripper_action'][0]
+        # 새로운 상태 관찰
+        observation = self.get_observation()
 
-        # Previous position of end-effector
-        prev_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
+        # 보상 계산
+        reward = self.compute_reward(observation)
 
-        # Current end-effector position and rotation
-        end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
-        
-        # Calculate target position and orientation
-        new_pos = np.array(end_effector_pos) + np.array(end_effector_pos_delta)
-        new_orn = p.getQuaternionFromEuler([0, 0, end_effector_rot_delta])
-        
-        # InverseKinematics
-        jointPoses = p.calculateInverseKinematics(self.robot_id, self.ee, new_pos, new_orn)
-        
-        # Control each joints to move end-effector to target position
-        for i in range(self.num_joints):
-            p.setJointMotorControl2(bodyIndex=self.robot_id,
-                                jointIndex=i,
-                                controlMode=p.POSITION_CONTROL,
-                                targetPosition=jointPoses[i],
-                                )
+        # 에피소드 종료 여부 판단
+        done = self.is_done(observation, self.step_count, max_steps=200)
 
-        # Apply gripper action
-        gripper_finger_indices = [7, 8]
-        for joint_index in gripper_finger_indices:
-            p.setJointMotorControl2(self.robot_id, joint_index, p.POSITION_CONTROL, targetPosition=gripper_action)
+        # 스텝 수 증가
+        self.step_count += 1
 
-        p.stepSimulation(self.client)
+        # 추가 정보 TODO: 이후 디버깅 또는 학습 분석을 위한 추가 정보
+        info = {}
 
-        # Current position of end-effector
-        cur_end_effector_pos = p.getLinkState(self.robot_id, self.ee)[0]
-
-        cube_pos = p.getBasePositionAndOrientation(self.cube_id)[0]
-        # print(f"Gripper Position: {cur_end_effector_pos}, Cube Position: {cube_pos}")
-
-        obs = self._get_observation()
-        reward = self._compute_reward(obs, prev_end_effector_pos, cur_end_effector_pos, new_pos)
-        done = self._is_done(obs)
-
-        return obs, reward, done
+        return observation, reward, done
     
 
+    def compute_reward(self, observation):
+        cube_pos = np.array(observation['cube_pos'])
+        target_pos = np.array(observation['target_pos'])
 
-    def _compute_reward(self, observation, initial_pos, final_pos, target_pos):
-        cube_pos = observation['cube_position']
-
-        gripper_contact = p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)
-        # print(f'gripper contact: {gripper_contact}')
-        reward = 0.0
-        
-        if np.allclose(final_pos, initial_pos, atol=1e-2):
-            reward -= 1.0
-        
+        distance = np.linalg.norm(cube_pos - target_pos)
+ 
+        if distance < 0.1:  # distance 범위 알아야함
+            return 10.0
+        elif distance < 0.5:
+            return 1.0
+        elif distance < 1.0:
+            return 0.5
         else:
-            if len(gripper_contact) > 0:
-                if cube_pos[2] > 1.0:
-                    reward += 10.0
-                else:
-                    reward += 1.0
-        reward = -0.025
-
-        return reward
+            return -1.0
 
 
+    def is_done(self, observation, step_count, max_steps=200):
+        cube_pos = observation['cube_pos']
+        target_pos = observation['target_pos']
 
-    def _is_done(self, observation):
-        cube_pos = observation['cube_position']
-        return cube_pos[2] >1.0
+        # 물체가 목표 위치에 정확히 놓였는지
+        dist = np.linalg.norm(np.array(cube_pos) - np.array(target_pos))
+        if dist < 0.05:
+            return True
+        
+        # 최대 스텝 수 초과
+        if step_count >= max_steps:
+            return True
+        
+        # (선택) 물체가 테이블 아래로 떨어졌는지 
+        # if cube_pos[2] < 테이블 z좌표 - 0.05:
+        #     return True
+    
+        return False
     
 
 
