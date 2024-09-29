@@ -18,7 +18,7 @@ class xArmEnv(gym.Env):
         self.num_joints = 7
 
         self.observation_space = spaces.Dict({
-            'rgbd': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
+            # 'rgbd': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
             'joint_angles': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
         })
 
