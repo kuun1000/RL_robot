@@ -30,8 +30,8 @@ for _ in range(10000):
     # YOLOv5를 사용하여 객체 감지
     rgb_img_resized = cv2.resize(rgb_img, (640, 640))
     results = model(rgb_img_resized)  # conf_thres는 직접 설정하지 않음
-    print(results)
-    print(model.names)
+    # print(results)
+    # print(model.names)
 
     # 결과에서 감지된 객체 정보 가져오기 (바운딩 박스와 레이블)
     # results.xyxy[0]: 좌표, confidence, class ID 등이 담긴 데이터
@@ -43,10 +43,18 @@ for _ in range(10000):
         if row[4] >= 0.1:
             x1, y1, x2, y2 = int(row[0] * rgb_img.shape[1]), int(row[1] * rgb_img.shape[0]), \
                              int(row[2] * rgb_img.shape[1]), int(row[3] * rgb_img.shape[0])
+            cx = int((x1 + x2) / 2)
+            cy = int((y1 + y2) / 2)
+            center = (cx, cy)
+            # print(center)
+            depth_value = depth_img[cy, cx]    # depth 추출
+            
             label = model.names[int(labels[i])]
-            color = (0, 255, 0)  # 녹색 바운딩 박스
-            cv2.rectangle(rgb_img, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(rgb_img, f"{label} {row[4]:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            cv2.rectangle(rgb_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # cv2.putText(rgb_img, f"{label} {row[4]:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.putText(rgb_img, f"{(cx, cy)}", (cx-40, cy-30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+            cv2.putText(rgb_img, f"Depth: {depth_value:.2f}", (rgb_img.shape[1] - 130, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
 
     # 감지된 객체들이 표시된 이미지를 출력
     cv2.imshow("Cube Detections", rgb_img)
