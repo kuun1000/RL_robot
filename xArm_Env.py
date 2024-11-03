@@ -19,12 +19,16 @@ class xArmEnv(gym.Env):
         self.num_joints = 6     # End-effector 제외한 관절 개수
 
         self.observation_space = spaces.Dict({
-            'rgb': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
-            'depth': spaces.Box(low=0, high=255, shape=(self.height, self.width, 1), dtype=np.uint8),
-            'joint_state': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32)
+            # 'rgb': spaces.Box(low=0, high=255, shape=(self.height, self.width, self.channel), dtype=np.uint8),
+            # 'depth': spaces.Box(low=0, high=255, shape=(self.height, self.width, 1), dtype=np.uint8),
+            # 'joint_state': spaces.Box(low=-np.pi, high=np.pi, shape=(self.num_joints, ), dtype=np.float32),
+            'grasp_state' : spaces.Discrete(2), # true : grasp /false : no grasp
+            'ee_position_state': spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32), ## position x,y,z 3d space
+            'cube_position_state': spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32) ## position x,y,z 3d space
         })
 
-        # 행동 공간 정의: End-effector displacement(x, y, z), gripper action(closing)
+        # 행동 공간 정의:
+        # up, down, right, left, forward, backward, open, close => 8 space
         self.action_space = spaces.Discrete(8)
 
         self.client = None
@@ -155,12 +159,14 @@ class xArmEnv(gym.Env):
         # 목표 위치
         target_pos = self.target_pos
         # 큐브 잡혔는지 여부
-        cube_grasped = len(p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)) > 0
+        # revise => at least 2 points are contacted.
+        cube_grasped = len(p.getContactPoints(bodyA=self.robot_id, bodyB=self.cube_id)) >= 2
 
+        # what about angle?
         observation = {
             'gripper_pos': gripper_pos,
             'cube_pos': cube_pos,
-            'target_pos': target_pos,
+            # 'target_pos': target_pos,
             'cube_grasped': cube_grasped
         }
 
@@ -194,19 +200,19 @@ class xArmEnv(gym.Env):
     
 
 
-    def compute_reward(self, observation):
-        # observation 추출
-        gripper_pos = observation['gripper_pos']   # 그리퍼의 현재 위치
-        cube_pos = np.array(observation['cube_pos'])     # 물체의 현재 위치
-        target_pos = np.array(observation['target_pos'])     # 목표 위치
-        cube_grasped = observation['cube_grasped']  # 물체가 잡혔는지 여부
+    # def compute_reward(self, observation):
+    #     # observation 추출
+    #     gripper_pos = observation['gripper_pos']   # 그리퍼의 현재 위치
+    #     cube_pos = np.array(observation['cube_pos'])     # 물체의 현재 위치
+    #     target_pos = np.array(observation['target_pos'])     # 목표 위치
+    #     cube_grasped = observation['cube_grasped']  # 물체가 잡혔는지 여부
 
-        # 거리 기반 보상 
-        assert cube_pos.shape == target_pos.shape
-        dist = np.linalg.norm(cube_pos - target_pos, axis=-1)
-        dist_reward = -np.round(dist, 6)
+    #     # 거리 기반 보상 
+    #     assert cube_pos.shape == target_pos.shape
+    #     dist = np.linalg.norm(cube_pos - target_pos, axis=-1)
+    #     dist_reward = -np.round(dist, 6)
 
-        return dist_reward
+    #     return dist_reward
 
 
 
