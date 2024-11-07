@@ -1,0 +1,67 @@
+import time
+import torch
+import gymnasium as gym
+from xArm_Env import xArmEnv
+import cv2
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+model_path = 'best.pt'
+model = torch.hub.load('./yolov5', 'custom',  'best.pt', source='local')
+model.eval()
+
+
+# 환경 초기화
+env = xArmEnv()
+
+# 초기 상태
+observation = env.reset()
+
+# 랜덤 스텝 수행
+for _ in range(10000):
+    time.sleep(0.1)
+    env.render()
+
+    rgb_img, depth_img = env.arm_camera()
+
+    # YOLOv5를 사용하여 객체 감지
+    rgb_img_resized = cv2.resize(rgb_img, (640, 640))
+    results = model(rgb_img_resized)
+    # print(results)
+    # print(model.names)
+
+    # 객체 정보(바운딩 박스와 레이블)
+    labels, cord = results.xyxyn[0][:, -1], results.xyxyn[0][:, :-1]
+
+    # 이미지에 바운딩 박스를 그리기
+    for i in range(len(labels)):
+        row = cord[i]
+        if row[4] >= 0.1:
+            x1, y1, x2, y2 = int(row[0] * rgb_img.shape[1]), int(row[1] * rgb_img.shape[0]), \
+                             int(row[2] * rgb_img.shape[1]), int(row[3] * rgb_img.shape[0])
+            cx = int((x1 + x2) / 2)
+            cy = int((y1 + y2) / 2)
+            center = (cx, cy)
+            # print(center)
+            depth_value = depth_img[cy, cx]
+            # print("Depth min:", np.min(depth_img), "Depth max:", np.max(depth_img))
+            
+            label = model.names[int(labels[i])]
+
+            cv2.rectangle(rgb_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # cv2.putText(rgb_img, f"{label} {row[4]:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.putText(rgb_img, f"{(cx, cy)}", (cx-40, cy-30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+            cv2.putText(rgb_img, f"Depth: {depth_value:.2f}", (rgb_img.shape[1] - 130, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2)
+
+    # 이미지 출력
+    cv2.imshow("Cube Detections", rgb_img)
+    cv2.imshow("Depth Image", depth_img)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+    time.sleep(0.1)
+
+env.close()
+cv2.destroyAllWindows()
