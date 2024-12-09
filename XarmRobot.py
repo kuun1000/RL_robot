@@ -5,26 +5,35 @@ import pybullet_data
 import numpy as np
 import cv2
 from gymnasium import spaces
+import torch
 import time
 
 class XarmRobotEnv(gym.Env):
-# Initialization ============================================
+    # Initialization ============================================
     def __init__(self, is_for_training = False):
         super(XarmRobotEnv,self).__init__()
-
-        # Camera info
         self.height, self.width, self.channel = 480, 640, 3
-        
         # simulation setup
         self.use_gui = not is_for_training
         self.realtime = not is_for_training
-
         self.num_step_max_per_episode = 1
         self.num_step = 0  
         self.num_simulation_steps = 2000
         self.tolerance = 0.005 # Tolerance value for the movement of the robot
         self.tolerance_reward = 0.05
 
+        self.model_path = 'best.pt'
+        self.model = torch.hub.load('./yolov5', 'custom',  'best.pt', source='local')
+        self.model.eval()
+        self.K = np.array([[554.7, 0, self.width/2],
+              [0, 415.7, self.height/2],
+              [0, 0, 1]])
+        self.R = np.array([[0, 1, 0],
+                    [1, 0, 0],
+                    [0, 0, -1]])
+
+
+        self.T = np.array([-0.37247, -0.37461, 1.4539])
         # Robot
         # joints : 0~5 + gripper R/L => 8 joints
         '''
@@ -32,13 +41,13 @@ class XarmRobotEnv(gym.Env):
                                             [0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0])
         '''
+        # Camera info
+        self.height, self.width, self.channel = 480, 640, 3
+
         self.joint_angles_des = None
         self.joint_positions_start = np.array(
                                             [0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0])
-        
-        # Quantities for the observation and the agent's objective
-        self.desired_cube_position = None
 
         # Open Pybullet
         try:
@@ -62,7 +71,7 @@ class XarmRobotEnv(gym.Env):
         try:
             self.plane_id = p.loadURDF("plane.urdf")
             self.table_id = p.loadURDF("table/table.urdf", 
-                                   basePosition=[0, 0, 0], 
+                                   basePosition=[0.5, 0, 0], 
                                    baseOrientation=p.getQuaternionFromEuler([0, 0, np.pi/2]))
                                    
         except Exception as e:
@@ -72,7 +81,7 @@ class XarmRobotEnv(gym.Env):
         self.obj_id = self.create_cube()
         
         # Load the robot
-        orientation_quat = p.getQuaternionFromEuler([0, 0, np.pi / 2])
+        orientation_quat = p.getQuaternionFromEuler([0, 0, -np.pi / 2])
         try:
             self.robot_id = p.loadURDF("robotarm_revise.urdf", useFixedBase=True, baseOrientation=orientation_quat)
         except Exception as e:
@@ -80,8 +89,8 @@ class XarmRobotEnv(gym.Env):
             raise
         
         # Save the number of joints of the robot
-        # except for fixed camera joint and gripper joints
-        self.num_tot_joints = p.getNumJoints(self.robot_id) - 3
+        # except for fixed camera joint 1 and gripper joints 3
+        self.num_tot_joints = p.getNumJoints(self.robot_id) - 4
 
         """
         Settings for gravity and simulation in the environment
@@ -101,10 +110,9 @@ class XarmRobotEnv(gym.Env):
         
         self.num_actions_x = 10 # 
         self.num_actions_y = 10 # 10 * 10 image grid 
-        self.center_obs_position = np.array([self.width/2, self.height/2])
 
         # Angle resolution: 5 degrees in radians
-         # Angle variation: ±[0, 5, 10, 15, 20, 25, 30, 35, 40, 45] degrees
+        # Angle variation: ±[0, 5, 10, 15, 20, 25, 30, 35, 40, 45] degrees
         self.ang_res = np.pi / 36
         self.angles = []
         # Adding positive and negative angle variations, including 0
@@ -114,28 +122,33 @@ class XarmRobotEnv(gym.Env):
 
         # Define the action space and observation space
         self.action_space = spaces.Discrete(self.num_actions_x * self.num_actions_y * self.num_angles)
-        self.observation_space = spaces.Box(low=0, high=2.0,
+        self.observation_space = spaces.Box(low=0, high=255,
                                             shape=(self.width, self.height, 1),
-                                            dtype=np.float32)  # pixel 640*480 depth image
+                                            dtype=np.uint8)  # pixel 640*480 depth image
         
         self.observation = None
         self.obj_pos = None
         # Reset the robot's pose and get camera data
-        self.reset_env()
+        # self.reset_env()
         self.rgb_img, self.depth_img = self.arm_camera()
 
-# DRL process ===============================================
-    def reset_env(self):
+    # DRL process ===============================================
+    def reset_env(self, seed=None, options=None):
         """
          Resets the robot's position.
         """
+        if seed is not None:
+            np.random.seed(seed)  # Set seed for reproducibility
+
         p.resetSimulation()
+        self.num_step = 0
+
         self.plane_id = p.loadURDF("plane.urdf")
         self.table_id = p.loadURDF("table/table.urdf", 
-                                basePosition=[0, 0, 0], 
+                                basePosition=[0.5, 0, 0], 
                                 baseOrientation=p.getQuaternionFromEuler([0, 0, np.pi/2]))
         
-        orientation_quat = p.getQuaternionFromEuler([0, 0, np.pi / 2])
+        orientation_quat = p.getQuaternionFromEuler([0, 0, -np.pi / 2])
         self.robot_id = p.loadURDF("robotarm_revise.urdf", useFixedBase=True, baseOrientation=orientation_quat)
 
         # Use resetJointState to directly set the position of each joint
@@ -147,28 +160,13 @@ class XarmRobotEnv(gym.Env):
         p.resetJointState(self.robot_id,7,target_position[self.joint_positions_start[6]])
         p.resetJointState(self.robot_id,8,target_position[self.joint_positions_start[7]])
         
-        # Save the new joint positions
-        for joint_index in range(self.num_tot_joints):
-            p.setJointMotorControl2(self.robot_id, jointIndex=joint_index,
-                                    controlMode=p.POSITION_CONTROL,
-                                    targetPosition=self.joint_positions_start[joint_index],
-                                    force=500)
-        p.setJointMotorControl2(self.robot_id, jointIndex= 7,
-                                    controlMode=p.POSITION_CONTROL,
-                                    targetPosition=self.joint_positions_start[6],
-                                    force=500)
-        p.setJointMotorControl2(self.robot_id, jointIndex= 8,
-                                    controlMode=p.POSITION_CONTROL,
-                                    targetPosition=self.joint_positions_start[7],
-                                    force=500)
-        
         self.obj_id = self.create_cube()
         self.rgb_img, self.depth_img = self.arm_camera()
         p.stepSimulation()
 
         return self.get_observation(), {}
     
-    # <keep its structure>
+    # <keep its structure>===================================
     def step(self, action):
         """
         Executes a step of the simulation based on the provided action.
@@ -232,16 +230,16 @@ class XarmRobotEnv(gym.Env):
         self.rgb_img, self.depth_img = self.arm_camera()
 
         # YOLO here
-        # yolo_crop_image,target_pos = YOLO(rgb_image,depth_img)
+        # yolo_crop_image,target_pos = YOLO(self.rgb_image,self.depth_img)
         # observation = crop_and_resize(yolo_crop_image)
         
         target_pos = 0 # Add YOLO and erase this line
         self.obj_pos = target_pos
         self.observation = observation
         return observation
-# DRL process ===============================================
+    # DRL process ===============================================
 
-# Utilities =================================================
+    # Utilities =================================================
     def arm_camera(self):
         # Center of mass position and orientation(of link-9)
         com_p, com_o, _, _, _, _ = p.getLinkState(self.robot_id, self.camera)
@@ -275,7 +273,34 @@ class XarmRobotEnv(gym.Env):
         depth_img = np.uint8(depth_img_normalized)
  
         return rgb_img, depth_img
+    
+    def YOLO(self):
+        print("TBD")
+        rgb_img_resized = cv2.resize(self.rgb_img, (640, 640))
+        results = self.model(rgb_img_resized)
+        labels, cord = results.xyxyn[0][:, -1], results.xyxyn[0][:, :-1]
+        # 이미지에 바운딩 박스를 그리기
+        for i in range(len(labels)):
+            row = cord[i]
+            if row[4] >= 0.1:
+                x1, y1, x2, y2 = int(row[0] * self.rgb_img.shape[1]), int(row[1] * self.rgb_img.shape[0]), \
+                                int(row[2] * self.rgb_img.shape[1]), int(row[3] * self.rgb_img.shape[0])
+                cx = int((x1 + x2) / 2)
+                cy = int((y1 + y2) / 2)
+                center = (cx, cy)
+                # print(center)
+                depth_value = self.depth_img[cy, cx]
+                depth = depth_value / 255.0  # 0~1 사이로 정규화된 값
 
+                # print(depth)
+
+                # pixel_coords = np.array([cx, cy, 1])
+                pixel_coords = np.array([cx, cy, 1])
+                camera_coords = depth * np.linalg.inv(self.K).dot(pixel_coords)
+
+                world_coords = np.round(np.linalg.inv(self.R).dot(camera_coords - self.T), 2) # 월드좌표
+
+    
     def create_cube(self):
         aabb_min, aabb_max = p.getAABB(self.table_id)
         pos_obj = [np.random.uniform(aabb_min[0]/2, aabb_max[0]/2),
@@ -349,9 +374,9 @@ class XarmRobotEnv(gym.Env):
             observation = np.full((self.obs_width, self.obs_height, 1), 255, dtype=np.uint8)
 
         return observation
-# Utilities =================================================
+    # Utilities =================================================
 
-# Robot move process ========================================
+    # Robot move process ========================================
     # clear but check again
     def move_the_robot(self, target_position, angle, place_position):
         """
@@ -397,7 +422,7 @@ class XarmRobotEnv(gym.Env):
         # Open the gripper
         self.openGripper()
 
-    # Unclear
+    # clear but check again
     def image2angle(self,action):
         '''
         target_position : inertial target position in environment
@@ -407,7 +432,7 @@ class XarmRobotEnv(gym.Env):
         angle = self.angles[action % self.num_angles]
         return angle
     
-    # Unclear
+    # clear but check again
     def calculateIK(self, target_position, angle):
         """
         Normalizes an angle to the range [-pi, pi].
@@ -418,7 +443,7 @@ class XarmRobotEnv(gym.Env):
             angle (double): Angle in the range [-pi, pi] for the end effector.
         """
         # Calculate, with IK, the desired angles of the joints for the desired position
-        self.joint_angles_des = p.calculateInverseKinematics(self.robotId, 6, target_position,
+        self.joint_angles_des = p.calculateInverseKinematics(self.robot_id, 6, target_position,
                                                              p.getQuaternionFromEuler([0, np.pi, angle]),
                                                              maxNumIterations=50, residualThreshold=1e-3)
 
@@ -444,7 +469,7 @@ class XarmRobotEnv(gym.Env):
             # Likely to be removed, doing this to lighten the computational load
             if step % 10:  # Every certain number of steps, check if the point has been reached
                 # Check the current angles of the joints
-                current_joint_angles = [p.getJointState(self.robotId, i)[0] for i in range(7)]
+                current_joint_angles = [p.getJointState(self.robot_id, i)[0] for i in range(7)]
 
                 # Normalize the target and current angles to the range [-pi, pi]
                 normalized_current_angles = [self.normalize_angle(angle) for angle in current_joint_angles]
@@ -455,9 +480,9 @@ class XarmRobotEnv(gym.Env):
                 # If all angles are within the tolerance, end the loop
                 if np.all(angle_diff < self.tolerance):
                     break
-# Robot move process ========================================
+    # Robot move process ========================================
 
-# Gripper section ===========================================
+    # Gripper section ===========================================
     def openGripper(self, gripper_opening):
         """
         Opens the gripper
@@ -472,7 +497,7 @@ class XarmRobotEnv(gym.Env):
         for _ in range(10):  # 10 iterations are enough
             p.stepSimulation()
     
-# Force ?
+    # Force ?
     def closeGripper(self, max_force=1.0):
         """
             Normalizes an angle to the range [-pi, pi].
@@ -481,8 +506,8 @@ class XarmRobotEnv(gym.Env):
                 max_force (double): force that must be felt by the gripper fingers to stop closing
         """
         # Close the gripper (joints 9 and 10 control the panda's fingers)
-        p.setJointMotorControl2(self.robotId, 7, p.POSITION_CONTROL, -np.pi/12)  # Value to adjust
-        p.setJointMotorControl2(self.robotId, 8, p.POSITION_CONTROL, np.pi/12)
+        p.setJointMotorControl2(self.robot_id, 7, p.POSITION_CONTROL, -np.pi/12)  # Value to adjust
+        p.setJointMotorControl2(self.robot_id, 8, p.POSITION_CONTROL, np.pi/12)
         step = 0
 
         # Perform at most 100 steps for the simulation
@@ -500,7 +525,7 @@ class XarmRobotEnv(gym.Env):
                 break
 
             p.stepSimulation()  # Continue simulating
-# Gripper section ===========================================
+    # Gripper section ===========================================
 
     def close(self):
         """
