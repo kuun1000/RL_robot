@@ -1,13 +1,10 @@
-
-* lite_6_robotarm.urdf: xArm6 + camera에 대한 urdf 파일
-* meshes: 위와 함께 필요한 파일들
-
-* xArm6_PickandPlace_Env.py: xArm6 로봇을 가지고 물체를 집어올리는 환경
-  * Rename해야 함(PickandPlace -> Pick)
-  
-* GraspQNetwork:  RGB-D 이미지와 motor 정보를 입력으로 받아 Q values를 출력하는 신경망
-
-* ReplayBuffer: 리플레이 버퍼
-
-* main: 학습
-  * Bug: loss 계산하는 과정 문제 있음 -> 현재: 학습 이루어지지 않는 상태
+개요
+---
+1. 스터디 목적(오민식)
+2. 강화학습 기본 이론(이연수)
+3. DRL 설명 => DQN(최원강), TD3(오민식)
+4. project 주제 설명=> Pick and Place(최원강)
+5. ref code process architecture(옥윤정)
+7. ref code 설명(이연수)
+8. 시행착오들(image2action, camera2world coordinate, etc...)(옥윤정)
+9. 최종 결과(오민식)
