@@ -30,7 +30,7 @@ TD3는 강화학습 알고리즘 중 하나로, **DDPG (Deep Deterministic Polic
 
 주로 연속적인 액션 공간에서 작동하며, 정책의 안정성과 학습 성능을 개선하는 데 중점을 둔다. 
 
-TD3는 두 개의 주요 네트워크인 Actor Network와 Critic Network를 사용하며, 이를 통해 정책(Actor)과 가치 함수(Critic)를 학습한다.
+TD3는 두 개의 주요 네트워크인 Actor Network와 Critic Network를 사용하며, 이를 통해 정책(Actor)과 가치 함수(Critic)를 학습한다.(그림 추가)
 
 ⚙️ 2. 구조와 구성 요소
 ---
